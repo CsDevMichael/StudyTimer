@@ -6,6 +6,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.*;
 import javafx.util.Duration;
 
@@ -18,7 +19,6 @@ public class App extends Application {
     private int focusedSeconds = 0;
     private int savedSeconds = 0;
 
-    private long startTime;
     private boolean running = false;
     private boolean goalStarted = false;
 
@@ -26,6 +26,7 @@ public class App extends Application {
 
     private Label timerLabel;
     private Label miniTimerLabel;
+
     private Timeline timeline;
     private Stage miniStage;
 
@@ -46,11 +47,9 @@ public class App extends Application {
         Button study = new Button("Study");
         Button project = new Button("Project");
         Button setGoal = new Button("Set Goal");
-
         Button start = new Button("Start");
         Button pause = new Button("Pause");
         Button reset = new Button("Reset");
-
         Button mini = new Button("Mini Timer");
         Button stats = new Button("Stats");
         Button calendar = new Button("Calendar");
@@ -71,14 +70,11 @@ public class App extends Application {
 
                 if (minutes > 0) {
                     timeline.stop();
-
                     goalSeconds = minutes * 60;
                     focusedSeconds = 0;
                     savedSeconds = 0;
-
                     running = false;
                     goalStarted = false;
-
                     updateLabels();
                 }
             } catch (NumberFormatException ignored) {
@@ -88,38 +84,38 @@ public class App extends Application {
         start.setOnAction(e -> {
 
             if (!goalStarted) {
-                goalStarted = true;
                 focusedSeconds = 0;
                 savedSeconds = 0;
+                goalStarted = true;
             }
 
-            startTime = System.nanoTime();
             running = true;
             timeline.play();
         });
 
         pause.setOnAction(e -> {
 
-            if (!running) return;
-
-            updateElapsed();
+            if (!running) {
+                return;
+            }
 
             running = false;
             timeline.pause();
-
             saveProgress(false);
         });
 
         reset.setOnAction(e -> {
 
-            if (running) updateElapsed();
+            if (running) {
+                running = false;
+                timeline.stop();
+                saveProgress(false);
+            }
 
-            saveProgress(false);
             timeline.stop();
 
             focusedSeconds = 0;
             savedSeconds = 0;
-
             running = false;
             goalStarted = false;
 
@@ -127,27 +123,36 @@ public class App extends Application {
         });
 
         timeline = new Timeline(
-                new KeyFrame(
-                        Duration.millis(200),
-                        e -> {
+                new KeyFrame(Duration.seconds(1), e -> {
 
-                            if (!running) return;
+                    if (!running) {
+                        return;
+                    }
 
-                            updateElapsed();
+                    focusedSeconds++;
 
-                            if (focusedSeconds >= goalSeconds) {
+                   if (focusedSeconds >= goalSeconds) {
 
-                                focusedSeconds = goalSeconds;
-                                running = false;
+    focusedSeconds = goalSeconds;
+    running = false;
 
-                                timeline.stop();
-                                saveProgress(true);
+    timeline.stop();
 
-                                goalStarted = false;
-                                updateLabels();
-                            }
-                        }
-                )
+    saveProgress(true);
+
+    goalStarted = false;
+
+    timerLabel.setText("Completed!");
+
+    if (miniTimerLabel != null) {
+        miniTimerLabel.setText("Completed!");
+    }
+
+    return;
+}
+
+updateLabels();
+                })
         );
 
         timeline.setCycleCount(Animation.INDEFINITE);
@@ -156,40 +161,55 @@ public class App extends Application {
         stats.setOnAction(e -> showStats());
         calendar.setOnAction(e -> CalendarView.show());
 
-        HBox modes = new HBox(10, study, project);
-        HBox goal = new HBox(
-                10,
-                new Label("Goal (minutes)"),
-                goalInput,
-                setGoal
-        );
-        HBox controls = new HBox(
-                10,
-                start,
-                pause,
-                reset
-        );
+        HBox modes =
+                new HBox(
+                        10,
+                        study,
+                        project
+                );
+
+        HBox goal =
+                new HBox(
+                        10,
+                        new Label("Goal (minutes)"),
+                        goalInput,
+                        setGoal
+                );
+
+        HBox controls =
+                new HBox(
+                        10,
+                        start,
+                        pause,
+                        reset
+                );
 
         modes.setAlignment(Pos.CENTER);
         goal.setAlignment(Pos.CENTER);
         controls.setAlignment(Pos.CENTER);
 
-        VBox layout = new VBox(
-                15,
-                title,
-                modeLabel,
-                modes,
-                goal,
-                timerLabel,
-                controls,
-                mini,
-                stats,
-                calendar
-        );
+        VBox layout =
+                new VBox(
+                        15,
+                        title,
+                        modeLabel,
+                        modes,
+                        goal,
+                        timerLabel,
+                        controls,
+                        mini,
+                        stats,
+                        calendar
+                );
 
         layout.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(layout, 450, 450);
+        Scene scene =
+                new Scene(
+                        layout,
+                        450,
+                        450
+                );
 
         scene.getStylesheets().add(
                 getClass()
@@ -202,41 +222,24 @@ public class App extends Application {
         stage.show();
     }
 
-    private void updateElapsed() {
-
-        if (!running) return;
-
-        long now = System.nanoTime();
-
-        int elapsed = (int)
-                ((now - startTime) / 1_000_000_000L);
-
-        focusedSeconds = savedSeconds + elapsed;
-
-        if (focusedSeconds > goalSeconds) {
-            focusedSeconds = goalSeconds;
-        }
-
-        updateLabels();
-    }
-
     private void saveProgress(boolean completed) {
 
-        int unsaved = focusedSeconds - savedSeconds;
+        int unsaved =
+                focusedSeconds - savedSeconds;
 
         if (!goalStarted || unsaved <= 0) {
             return;
         }
 
-        GoalSession session = new GoalSession(
-                LocalDate.now(),
-                mode,
-                goalSeconds,
-                unsaved,
-                completed
+        SessionManager.saveGoalSession(
+                new GoalSession(
+                        LocalDate.now(),
+                        mode,
+                        goalSeconds,
+                        unsaved,
+                        completed
+                )
         );
-
-        SessionManager.saveGoalSession(session);
 
         savedSeconds = focusedSeconds;
     }
@@ -244,9 +247,13 @@ public class App extends Application {
     private void updateLabels() {
 
         int remaining =
-                Math.max(0, goalSeconds - focusedSeconds);
+                Math.max(
+                        0,
+                        goalSeconds - focusedSeconds
+                );
 
-        String time = formatTime(remaining);
+        String time =
+                formatTime(remaining);
 
         timerLabel.setText(time);
 
@@ -265,71 +272,193 @@ public class App extends Application {
         int project = 0;
         int completed = 0;
 
-        Set<LocalDate> activeDays = new HashSet<>();
+        Set<LocalDate> activeDays =
+                new HashSet<>();
 
-        for (GoalSession s : sessions) {
+        for (GoalSession session : sessions) {
 
-            int seconds = s.getFocusedSeconds();
+            int seconds =
+                    session.getFocusedSeconds();
 
             total += seconds;
-            activeDays.add(s.getDate());
 
-            if (s.getMode() == TimerMode.STUDY) {
+            activeDays.add(
+                    session.getDate()
+            );
+
+            if (session.getMode()
+                    == TimerMode.STUDY) {
+
                 study += seconds;
+
             } else {
+
                 project += seconds;
             }
 
-            if (s.isCompleted()) {
+            if (session.isCompleted()) {
                 completed++;
             }
         }
 
-        VBox layout = new VBox(
-                15,
-                new Label("StudyTimer Stats"),
+        Label totalLabel =
                 new Label(
-                        "Total Focused: " +
-                        formatDuration(total)
-                ),
+                        "Total Focused: "
+                                + formatDuration(total)
+                );
+
+        Label studyLabel =
                 new Label(
-                        "Study Time: " +
-                        formatDuration(study)
-                ),
+                        "Study Time: "
+                                + formatDuration(study)
+                );
+
+        Label projectLabel =
                 new Label(
-                        "Project Time: " +
-                        formatDuration(project)
-                ),
+                        "Project Time: "
+                                + formatDuration(project)
+                );
+
+        Label completedLabel =
                 new Label(
-                        "Goals Completed: " + completed
-                ),
+                        "Goals Completed: "
+                                + completed
+                );
+
+        Label activeDaysLabel =
                 new Label(
-                        "Active Days: " +
-                        activeDays.size()
-                ),
+                        "Active Days: "
+                                + activeDays.size()
+                );
+
+        Label streakLabel =
                 new Label(
-                        "Current Streak: " +
-                        streak(activeDays) +
-                        " days 🔥"
-                )
-        );
+                        "Current Streak: "
+                                + streak(activeDays)
+                                + " days 🔥"
+                );
+
+        Stage window =
+                new Stage();
+
+        Button resetToday =
+                new Button("Reset Today");
+
+        Button resetStats =
+                new Button("Reset Stats");
+
+        resetToday.setOnAction(e -> {
+
+            Alert alert =
+                    new Alert(
+                            Alert.AlertType.CONFIRMATION
+                    );
+
+            alert.setTitle("Reset Today");
+
+            alert.setHeaderText(
+                    "Reset today's statistics?"
+            );
+
+            alert.setContentText(
+                    "Only today's saved data will be deleted."
+            );
+
+            Optional<ButtonType> result =
+                    alert.showAndWait();
+
+            if (result.isPresent()
+                    && result.get() == ButtonType.OK) {
+
+                SessionManager.resetToday();
+
+                window.close();
+                showStats();
+            }
+        });
+
+        resetStats.setOnAction(e -> {
+
+            Alert alert =
+                    new Alert(
+                            Alert.AlertType.CONFIRMATION
+                    );
+
+            alert.setTitle("Reset Stats");
+
+            alert.setHeaderText(
+                    "Reset all statistics?"
+            );
+
+            alert.setContentText(
+                    "This will permanently delete your saved study statistics."
+            );
+
+            Optional<ButtonType> result =
+                    alert.showAndWait();
+
+            if (result.isPresent()
+                    && result.get() == ButtonType.OK) {
+
+                SessionManager.resetStats();
+
+                totalLabel.setText(
+                        "Total Focused: 0s"
+                );
+
+                studyLabel.setText(
+                        "Study Time: 0s"
+                );
+
+                projectLabel.setText(
+                        "Project Time: 0s"
+                );
+
+                completedLabel.setText(
+                        "Goals Completed: 0"
+                );
+
+                activeDaysLabel.setText(
+                        "Active Days: 0"
+                );
+
+                streakLabel.setText(
+                        "Current Streak: 0 days 🔥"
+                );
+            }
+        });
+
+        VBox layout =
+                new VBox(
+                        15,
+                        new Label("StudyTimer Stats"),
+                        totalLabel,
+                        studyLabel,
+                        projectLabel,
+                        completedLabel,
+                        activeDaysLabel,
+                        streakLabel,
+                        resetToday,
+                        resetStats
+                );
 
         layout.setAlignment(Pos.CENTER);
-        layout.getStyleClass().add("stats-root");
 
-        Scene scene = new Scene(
-                layout,
-                350,
-                330
-        );
+        layout.getStyleClass()
+                .add("stats-root");
+
+        Scene scene =
+                new Scene(
+                        layout,
+                        350,
+                        400
+                );
 
         scene.getStylesheets().add(
                 getClass()
                         .getResource("/style.css")
                         .toExternalForm()
         );
-
-        Stage window = new Stage();
 
         window.setTitle("StudyTimer Stats");
         window.setScene(scene);
@@ -339,11 +468,16 @@ public class App extends Application {
     private int streak(Set<LocalDate> days) {
 
         int count = 0;
-        LocalDate date = LocalDate.now();
+
+        LocalDate date =
+                LocalDate.now();
 
         while (days.contains(date)) {
+
             count++;
-            date = date.minusDays(1);
+
+            date =
+                    date.minusDays(1);
         }
 
         return count;
@@ -357,52 +491,84 @@ public class App extends Application {
         }
 
         miniStage = new Stage();
-        miniStage.initStyle(StageStyle.UNDECORATED);
-        miniStage.setAlwaysOnTop(true);
 
-        miniTimerLabel = new Label(
-                formatTime(
-                        goalSeconds - focusedSeconds
-                )
+        miniStage.initStyle(
+                StageStyle.UNDECORATED
         );
 
+        miniStage.setAlwaysOnTop(true);
+
+        miniTimerLabel =
+                new Label(
+                        formatTime(
+                                goalSeconds
+                                        - focusedSeconds
+                        )
+                );
+
         miniTimerLabel.setStyle(
-                "-fx-font-size:38px;" +
+                "-fx-font-size:24px;" +
                 "-fx-font-weight:bold;" +
                 "-fx-text-fill:white;"
         );
 
-        VBox box = new VBox(miniTimerLabel);
+        VBox box =
+                new VBox(
+                        miniTimerLabel
+                );
+
         box.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(box, 200, 90);
+        box.setStyle(
+                "-fx-background-color:#111827;"
+        );
+
+        Scene scene =
+                new Scene(
+                        box,
+                        200,
+                        90
+                );
+
+        scene.setFill(
+                Color.web("#111827")
+        );
 
         miniStage.setScene(scene);
 
         miniStage.setX(
                 Screen.getPrimary()
                         .getVisualBounds()
-                        .getMaxX() - 220
+                        .getMaxX()
+                        - 220
         );
 
         miniStage.setY(
                 Screen.getPrimary()
                         .getVisualBounds()
-                        .getMaxY() - 130
+                        .getMaxY()
+                        - 130
         );
 
         box.setOnMousePressed(e -> {
-            mouseX = e.getSceneX();
-            mouseY = e.getSceneY();
+
+            mouseX =
+                    e.getSceneX();
+
+            mouseY =
+                    e.getSceneY();
         });
 
         box.setOnMouseDragged(e -> {
+
             miniStage.setX(
-                    e.getScreenX() - mouseX
+                    e.getScreenX()
+                            - mouseX
             );
 
             miniStage.setY(
-                    e.getScreenY() - mouseY
+                    e.getScreenY()
+                            - mouseY
             );
         });
 
@@ -420,19 +586,26 @@ public class App extends Application {
 
     private String formatDuration(int seconds) {
 
-        int hours = seconds / 3600;
-        int minutes = (seconds % 3600) / 60;
-        int secs = seconds % 60;
+        int hours =
+                seconds / 3600;
+
+        int minutes =
+                (seconds % 3600) / 60;
+
+        int secs =
+                seconds % 60;
 
         if (hours > 0) {
-            return hours + "h " +
-                    minutes + "m " +
-                    secs + "s";
+
+            return hours + "h "
+                    + minutes + "m "
+                    + secs + "s";
         }
 
         if (minutes > 0) {
-            return minutes + "m " +
-                    secs + "s";
+
+            return minutes + "m "
+                    + secs + "s";
         }
 
         return secs + "s";

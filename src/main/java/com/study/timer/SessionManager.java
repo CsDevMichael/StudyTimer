@@ -168,4 +168,57 @@ public class SessionManager {
 
         return sessions;
     }
+    public static void resetStats() {
+
+    try {
+        Files.deleteIfExists(FILE);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+public static void resetToday() {
+
+    if (!Files.exists(FILE)) {
+        return;
+    }
+
+    try {
+
+        List<String> lines =
+                Files.readAllLines(FILE);
+
+        List<String> remaining =
+                new ArrayList<>();
+
+        String today =
+                LocalDate.now().toString();
+
+        for (String line : lines) {
+
+            String[] parts =
+                    line.split(",");
+
+            // GOAL format:
+            // GOAL,date,mode,goal,focused,completed
+            if (parts.length == 6
+                    && parts[0].equals("GOAL")
+                    && parts[1].equals(today)) {
+
+                continue;
+            }
+
+            remaining.add(line);
+        }
+
+        Files.write(
+                FILE,
+                remaining,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING
+        );
+
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
 }

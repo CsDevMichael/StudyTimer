@@ -22,33 +22,35 @@ public class CalendarView {
 
     public static void show() {
 
-        List<Session> sessions =
-                SessionManager.getSessions();
+        List<GoalSession> sessions =
+                SessionManager.getGoalSessions();
+
+        Set<LocalDate> completedDays =
+                new HashSet<>();
 
         Set<LocalDate> activeDays =
                 new HashSet<>();
 
-        for (Session session : sessions) {
+        for (GoalSession session : sessions) {
+
             activeDays.add(session.getDate());
+
+            if (session.isCompleted()) {
+                completedDays.add(session.getDate());
+            }
         }
 
-        Label title =
-                new Label();
-
+        Label title = new Label();
         title.getStyleClass().add("title");
 
-        GridPane calendar =
-                new GridPane();
+        GridPane calendar = new GridPane();
 
         calendar.setHgap(10);
         calendar.setVgap(10);
         calendar.setAlignment(Pos.CENTER);
 
-        Button previous =
-                new Button("←");
-
-        Button next =
-                new Button("→");
+        Button previous = new Button("←");
+        Button next = new Button("→");
 
         HBox navigation =
                 new HBox(
@@ -68,9 +70,7 @@ public class CalendarView {
                 );
 
         layout.setAlignment(Pos.CENTER);
-
-        layout.getStyleClass()
-                .add("calendar-root");
+        layout.getStyleClass().add("calendar-root");
 
         Scene scene =
                 new Scene(
@@ -85,8 +85,7 @@ public class CalendarView {
                         .toExternalForm()
         );
 
-        Stage stage =
-                new Stage();
+        Stage stage = new Stage();
 
         stage.setTitle("StudyTimer Calendar");
         stage.setScene(scene);
@@ -94,9 +93,9 @@ public class CalendarView {
         Runnable refresh = () -> {
 
             title.setText(
-                    currentMonth.getMonth() +
-                    " " +
-                    currentMonth.getYear()
+                    currentMonth.getMonth()
+                            + " "
+                            + currentMonth.getYear()
             );
 
             calendar.getChildren().clear();
@@ -128,7 +127,9 @@ public class CalendarView {
                         currentMonth.atDay(day);
 
                 Label label =
-                        new Label(String.valueOf(day));
+                        new Label(
+                                String.valueOf(day)
+                        );
 
                 label.setMinSize(35, 35);
                 label.setAlignment(Pos.CENTER);
@@ -136,22 +137,20 @@ public class CalendarView {
                 label.getStyleClass()
                         .add("calendar-date");
 
-                if (activeDays.contains(date)
-                        && date.equals(LocalDate.now())) {
+                // GOAL COMPLETED = GREEN
+                if (completedDays.contains(date)) {
 
-                    label.getStyleClass()
-                            .add("calendar-active-today");
+    label.setStyle(
+            "-fx-background-color: #22c55e;" +
+            "-fx-text-fill: white;" +
+            "-fx-background-radius: 8;"
+    );
 
-                } else if (activeDays.contains(date)) {
+} else if (date.equals(LocalDate.now())) {
 
-                    label.getStyleClass()
-                            .add("calendar-active");
-
-                } else if (date.equals(LocalDate.now())) {
-
-                    label.getStyleClass()
-                            .add("calendar-today");
-                }
+    label.getStyleClass()
+            .add("calendar-today");
+}
 
                 int position =
                         startColumn + day - 1;
