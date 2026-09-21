@@ -13,6 +13,11 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
+import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class App extends Application {
 
     private int seconds = 25 * 60;
@@ -32,10 +37,6 @@ public class App extends Application {
     @Override
     public void start(Stage stage) {
 
-        // =========================
-        // MAIN WINDOW
-        // =========================
-
         Label title = new Label("StudyTimer");
 
         Label modeLabel = new Label("Mode: STUDY");
@@ -50,6 +51,8 @@ public class App extends Application {
         Button resetButton = new Button("Reset");
 
         Button miniButton = new Button("Mini Timer");
+
+        Button statsButton = new Button("Stats");
 
         // Study mode
         studyButton.setOnAction(event -> {
@@ -76,10 +79,13 @@ public class App extends Application {
             updateTimerLabels();
         });
 
-        // Open mini timer
+        // Mini timer
         miniButton.setOnAction(event -> showMiniTimer());
 
-        // Timer runs every second
+        // Stats
+        statsButton.setOnAction(event -> showStats());
+
+        // Timer
         KeyFrame keyFrame = new KeyFrame(
                 Duration.seconds(1),
                 event -> {
@@ -93,6 +99,14 @@ public class App extends Application {
                     } else {
 
                         timeline.stop();
+
+                        Session session = new Session(
+                                LocalDate.now(),
+                                currentMode,
+                                25 * 60
+                        );
+
+                        SessionManager.saveSession(session);
                     }
                 }
         );
@@ -100,7 +114,6 @@ public class App extends Application {
         timeline = new Timeline(keyFrame);
         timeline.setCycleCount(Timeline.INDEFINITE);
 
-        // Buttons in one row
         HBox modeButtons = new HBox(
                 10,
                 studyButton,
@@ -125,12 +138,13 @@ public class App extends Application {
                 modeButtons,
                 timerLabel,
                 timerButtons,
-                miniButton
+                miniButton,
+                statsButton
         );
 
         layout.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(layout, 400, 350);
+        Scene scene = new Scene(layout, 400, 400);
 
         stage.setTitle("StudyTimer");
         stage.setScene(scene);
@@ -140,26 +154,165 @@ public class App extends Application {
 
 
     // =========================
+    // STATS WINDOW
+    // =========================
+
+    private void showStats() {
+
+        List<Session> sessions =
+                SessionManager.getSessions();
+
+        int totalSeconds = 0;
+        int studySeconds = 0;
+        int projectSeconds = 0;
+
+        Set<LocalDate> activeDays =
+                new HashSet<>();
+
+        for (Session session : sessions) {
+
+            totalSeconds += session.getSeconds();
+
+            activeDays.add(session.getDate());
+
+            if (session.getMode() == TimerMode.STUDY) {
+
+                studySeconds += session.getSeconds();
+
+            } else if (session.getMode() == TimerMode.PROJECT) {
+
+                projectSeconds += session.getSeconds();
+            }
+        }
+
+        int streak = calculateStreak(activeDays);
+
+        Label title =
+                new Label("StudyTimer Stats");
+
+        Label total =
+                new Label(
+                        "Total Focused: " +
+                        formatMinutes(totalSeconds)
+                );
+
+        Label study =
+                new Label(
+                        "Study Time: " +
+                        formatMinutes(studySeconds)
+                );
+
+        Label project =
+                new Label(
+                        "Project Time: " +
+                        formatMinutes(projectSeconds)
+                );
+
+        Label days =
+                new Label(
+                        "Active Days: " +
+                        activeDays.size()
+                );
+
+        Label streakLabel =
+                new Label(
+                        "Current Streak: " +
+                        streak + " days 🔥"
+                );
+
+        VBox statsLayout = new VBox(
+                15,
+                title,
+                total,
+                study,
+                project,
+                days,
+                streakLabel
+        );
+
+        statsLayout.setAlignment(Pos.CENTER);
+
+        Scene statsScene =
+                new Scene(statsLayout, 350, 300);
+
+        Stage statsStage =
+                new Stage();
+
+        statsStage.setTitle("StudyTimer Stats");
+
+        statsStage.setScene(statsScene);
+
+        statsStage.show();
+    }
+
+
+    // =========================
+    // STREAK
+    // =========================
+
+    private int calculateStreak(Set<LocalDate> activeDays) {
+
+        int streak = 0;
+
+        LocalDate date = LocalDate.now();
+
+        while (activeDays.contains(date)) {
+
+            streak++;
+
+            date = date.minusDays(1);
+        }
+
+        return streak;
+    }
+
+
+    // =========================
+    // FORMAT MINUTES
+    // =========================
+
+    private String formatMinutes(int totalSeconds) {
+
+        int minutes = totalSeconds / 60;
+
+        int hours = minutes / 60;
+
+        minutes = minutes % 60;
+
+        if (hours > 0) {
+
+            return hours + "h " + minutes + "m";
+
+        } else {
+
+            return minutes + "m";
+        }
+    }
+
+
+    // =========================
     // MINI TIMER
     // =========================
 
     private void showMiniTimer() {
 
-        // If mini timer already exists, just show it
         if (miniStage != null) {
+
             miniStage.show();
+
             return;
         }
 
         miniStage = new Stage();
 
-        // Remove normal window border
-        miniStage.initStyle(StageStyle.UNDECORATED);
+        miniStage.initStyle(
+                StageStyle.UNDECORATED
+        );
 
-        // Keep above other windows
         miniStage.setAlwaysOnTop(true);
 
-        miniTimerLabel = new Label(formatTime(seconds));
+        miniTimerLabel =
+                new Label(formatTime(seconds));
 
         miniTimerLabel.setStyle(
                 "-fx-font-size: 24px;" +
@@ -167,21 +320,20 @@ public class App extends Application {
                 "-fx-padding: 10px;"
         );
 
-        VBox miniLayout = new VBox(
-                miniTimerLabel
-        );
+        VBox miniLayout =
+                new VBox(miniTimerLabel);
 
         miniLayout.setAlignment(Pos.CENTER);
 
-        Scene miniScene = new Scene(
-                miniLayout,
-                120,
-                60
-        );
+        Scene miniScene =
+                new Scene(
+                        miniLayout,
+                        120,
+                        60
+                );
 
         miniStage.setScene(miniScene);
 
-        // Put mini timer near bottom-right
         miniStage.setX(
                 javafx.stage.Screen.getPrimary()
                         .getVisualBounds()
@@ -194,15 +346,11 @@ public class App extends Application {
                         .getMaxY() - 100
         );
 
-        // =========================
-        // DRAGGING
-        // =========================
-
+        // Dragging
         miniLayout.setOnMousePressed(event -> {
 
             mouseX = event.getSceneX();
             mouseY = event.getSceneY();
-
         });
 
         miniLayout.setOnMouseDragged(event -> {
@@ -214,7 +362,6 @@ public class App extends Application {
             miniStage.setY(
                     event.getScreenY() - mouseY
             );
-
         });
 
         miniStage.show();
@@ -232,6 +379,7 @@ public class App extends Application {
         timerLabel.setText(time);
 
         if (miniTimerLabel != null) {
+
             miniTimerLabel.setText(time);
         }
     }

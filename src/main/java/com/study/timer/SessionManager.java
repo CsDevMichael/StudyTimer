@@ -1,0 +1,77 @@
+package com.study.timer;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+public class SessionManager {
+
+    private static final Path FILE =
+            Path.of(System.getProperty("user.home"), "StudyTimerSessions.csv");
+
+    public static void saveSession(Session session) {
+
+        String line =
+                session.getDate() + "," +
+                session.getMode() + "," +
+                session.getSeconds() +
+                System.lineSeparator();
+
+        try {
+            Files.writeString(
+                    FILE,
+                    line,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND
+            );
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public static List<Session> getSessions() {
+
+        List<Session> sessions = new ArrayList<>();
+
+        if (!Files.exists(FILE)) {
+            return sessions;
+        }
+
+        try {
+
+            List<String> lines = Files.readAllLines(FILE);
+
+            for (String line : lines) {
+
+                String[] parts = line.split(",");
+
+                if (parts.length == 3) {
+
+                    LocalDate date =
+                            LocalDate.parse(parts[0]);
+
+                    TimerMode mode =
+                            TimerMode.valueOf(parts[1]);
+
+                    int seconds =
+                            Integer.parseInt(parts[2]);
+
+                    sessions.add(
+                            new Session(date, mode, seconds)
+                    );
+                }
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return sessions;
+    }
+}
