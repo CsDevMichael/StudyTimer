@@ -11,7 +11,10 @@ import java.util.List;
 public class SessionManager {
 
     private static final Path FILE =
-            Path.of(System.getProperty("user.home"), "StudyTimerSessions.csv");
+            Path.of(
+                    System.getProperty("user.home"),
+                    "StudyTimerSessions.csv"
+            );
 
     public static void saveSession(Session session) {
 
@@ -22,6 +25,7 @@ public class SessionManager {
                 System.lineSeparator();
 
         try {
+
             Files.writeString(
                     FILE,
                     line,
@@ -34,10 +38,37 @@ public class SessionManager {
         }
     }
 
+    public static void saveGoalSession(
+            GoalSession session
+    ) {
+
+        String line =
+                "GOAL," +
+                session.getDate() + "," +
+                session.getMode() + "," +
+                session.getGoalSeconds() + "," +
+                session.getFocusedSeconds() + "," +
+                session.isCompleted() +
+                System.lineSeparator();
+
+        try {
+
+            Files.writeString(
+                    FILE,
+                    line,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND
+            );
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static List<Session> getSessions() {
 
-        List<Session> sessions = new ArrayList<>();
+        List<Session> sessions =
+                new ArrayList<>();
 
         if (!Files.exists(FILE)) {
             return sessions;
@@ -45,12 +76,15 @@ public class SessionManager {
 
         try {
 
-            List<String> lines = Files.readAllLines(FILE);
+            List<String> lines =
+                    Files.readAllLines(FILE);
 
             for (String line : lines) {
 
-                String[] parts = line.split(",");
+                String[] parts =
+                        line.split(",");
 
+                // Old session format
                 if (parts.length == 3) {
 
                     LocalDate date =
@@ -63,12 +97,72 @@ public class SessionManager {
                             Integer.parseInt(parts[2]);
 
                     sessions.add(
-                            new Session(date, mode, seconds)
+                            new Session(
+                                    date,
+                                    mode,
+                                    seconds
+                            )
                     );
                 }
             }
 
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return sessions;
+    }
+
+    public static List<GoalSession> getGoalSessions() {
+
+        List<GoalSession> sessions =
+                new ArrayList<>();
+
+        if (!Files.exists(FILE)) {
+            return sessions;
+        }
+
+        try {
+
+            List<String> lines =
+                    Files.readAllLines(FILE);
+
+            for (String line : lines) {
+
+                String[] parts =
+                        line.split(",");
+
+                if (parts.length == 6
+                        && parts[0].equals("GOAL")) {
+
+                    LocalDate date =
+                            LocalDate.parse(parts[1]);
+
+                    TimerMode mode =
+                            TimerMode.valueOf(parts[2]);
+
+                    int goalSeconds =
+                            Integer.parseInt(parts[3]);
+
+                    int focusedSeconds =
+                            Integer.parseInt(parts[4]);
+
+                    boolean completed =
+                            Boolean.parseBoolean(parts[5]);
+
+                    sessions.add(
+                            new GoalSession(
+                                    date,
+                                    mode,
+                                    goalSeconds,
+                                    focusedSeconds,
+                                    completed
+                            )
+                    );
+                }
+            }
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

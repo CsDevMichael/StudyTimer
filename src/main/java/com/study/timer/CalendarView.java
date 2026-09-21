@@ -2,12 +2,13 @@ package com.study.timer;
 
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashSet;
@@ -15,6 +16,9 @@ import java.util.List;
 import java.util.Set;
 
 public class CalendarView {
+
+    private static YearMonth currentMonth =
+            YearMonth.now();
 
     public static void show() {
 
@@ -28,127 +32,45 @@ public class CalendarView {
             activeDays.add(session.getDate());
         }
 
-        LocalDate today = LocalDate.now();
-
-        YearMonth currentMonth =
-                YearMonth.from(today);
-
         Label title =
-                new Label(
-                        currentMonth.getMonth() +
-                        " " +
-                        currentMonth.getYear()
-                );
+                new Label();
+
+        title.getStyleClass().add("title");
 
         GridPane calendar =
                 new GridPane();
 
         calendar.setHgap(10);
         calendar.setVgap(10);
-
         calendar.setAlignment(Pos.CENTER);
 
-        // Day names
-        String[] days = {
-                "Mon", "Tue", "Wed",
-                "Thu", "Fri", "Sat", "Sun"
-        };
+        Button previous =
+                new Button("←");
 
-        for (int i = 0; i < days.length; i++) {
+        Button next =
+                new Button("→");
 
-            Label dayLabel =
-                    new Label(days[i]);
-
-            calendar.add(
-                    dayLabel,
-                    i,
-                    0
-            );
-        }
-
-        LocalDate firstDay =
-                currentMonth.atDay(1);
-
-        int startColumn =
-                firstDay.getDayOfWeek()
-                        .getValue() - 1;
-
-        int daysInMonth =
-                currentMonth.lengthOfMonth();
-
-        for (int day = 1;
-             day <= daysInMonth;
-             day++) {
-
-            LocalDate date =
-                    currentMonth.atDay(day);
-
-            Label dateLabel =
-                    new Label(String.valueOf(day));
-
-            dateLabel.setMinSize(35, 35);
-
-            dateLabel.setAlignment(
-                    Pos.CENTER
-            );
-
-           if (activeDays.contains(date) && date.equals(today)) {
-
-    dateLabel.setStyle(
-            "-fx-background-color: lightgreen;" +
-            "-fx-border-color: black;" +
-            "-fx-border-width: 2px;" +
-            "-fx-font-weight: bold;"
-    );
-
-} else if (activeDays.contains(date)) {
-
-    dateLabel.setStyle(
-            "-fx-background-color: lightgreen;" +
-            "-fx-font-weight: bold;"
-    );
-
-} else if (date.equals(today)) {
-
-    dateLabel.setStyle(
-            "-fx-border-color: black;" +
-            "-fx-border-width: 2px;" +
-            "-fx-font-weight: bold;"
-    );
-}
-
-            int position =
-                    startColumn + day - 1;
-
-            int row =
-                    position / 7 + 1;
-
-            int column =
-                    position % 7;
-
-            calendar.add(
-                    dateLabel,
-                    column,
-                    row
-            );
-        }
-
-        Label legend =
-                new Label(
-                        "Green = completed session"
+        HBox navigation =
+                new HBox(
+                        20,
+                        previous,
+                        title,
+                        next
                 );
+
+        navigation.setAlignment(Pos.CENTER);
 
         VBox layout =
                 new VBox(
                         20,
-                        title,
-                        calendar,
-                        legend
+                        navigation,
+                        calendar
                 );
 
-        layout.setAlignment(
-                Pos.CENTER
-        );
+        layout.setAlignment(Pos.CENTER);
+
+        layout.getStyleClass()
+                .add("calendar-root");
 
         Scene scene =
                 new Scene(
@@ -157,14 +79,108 @@ public class CalendarView {
                         400
                 );
 
+        scene.getStylesheets().add(
+                CalendarView.class
+                        .getResource("/style.css")
+                        .toExternalForm()
+        );
+
         Stage stage =
                 new Stage();
 
-        stage.setTitle(
-                "StudyTimer Calendar"
-        );
-
+        stage.setTitle("StudyTimer Calendar");
         stage.setScene(scene);
+
+        Runnable refresh = () -> {
+
+            title.setText(
+                    currentMonth.getMonth() +
+                    " " +
+                    currentMonth.getYear()
+            );
+
+            calendar.getChildren().clear();
+
+            String[] days = {
+                    "Mon", "Tue", "Wed",
+                    "Thu", "Fri", "Sat", "Sun"
+            };
+
+            for (int i = 0; i < 7; i++) {
+
+                calendar.add(
+                        new Label(days[i]),
+                        i,
+                        0
+                );
+            }
+
+            int startColumn =
+                    currentMonth.atDay(1)
+                            .getDayOfWeek()
+                            .getValue() - 1;
+
+            for (int day = 1;
+                 day <= currentMonth.lengthOfMonth();
+                 day++) {
+
+                LocalDate date =
+                        currentMonth.atDay(day);
+
+                Label label =
+                        new Label(String.valueOf(day));
+
+                label.setMinSize(35, 35);
+                label.setAlignment(Pos.CENTER);
+
+                label.getStyleClass()
+                        .add("calendar-date");
+
+                if (activeDays.contains(date)
+                        && date.equals(LocalDate.now())) {
+
+                    label.getStyleClass()
+                            .add("calendar-active-today");
+
+                } else if (activeDays.contains(date)) {
+
+                    label.getStyleClass()
+                            .add("calendar-active");
+
+                } else if (date.equals(LocalDate.now())) {
+
+                    label.getStyleClass()
+                            .add("calendar-today");
+                }
+
+                int position =
+                        startColumn + day - 1;
+
+                calendar.add(
+                        label,
+                        position % 7,
+                        position / 7 + 1
+                );
+            }
+        };
+
+        previous.setOnAction(e -> {
+
+            currentMonth =
+                    currentMonth.minusMonths(1);
+
+            refresh.run();
+        });
+
+        next.setOnAction(e -> {
+
+            currentMonth =
+                    currentMonth.plusMonths(1);
+
+            refresh.run();
+        });
+
+        refresh.run();
 
         stage.show();
     }

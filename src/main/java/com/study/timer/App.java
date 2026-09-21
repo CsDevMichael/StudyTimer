@@ -1,35 +1,32 @@
 package com.study.timer;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import javafx.animation.*;
 import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.*;
 import javafx.util.Duration;
 
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class App extends Application {
 
-    private int seconds = 25 * 60;
-    private int sessionSeconds = 0;
+    private int goalSeconds = 1500;
+    private int focusedSeconds = 0;
+    private int savedSeconds = 0;
+
+    private long startTime;
+    private boolean running = false;
+    private boolean goalStarted = false;
+
+    private TimerMode mode = TimerMode.STUDY;
 
     private Label timerLabel;
     private Label miniTimerLabel;
-
     private Timeline timeline;
-
-    private TimerMode currentMode = TimerMode.STUDY;
-
     private Stage miniStage;
 
     private double mouseX;
@@ -39,382 +36,409 @@ public class App extends Application {
     public void start(Stage stage) {
 
         Label title = new Label("StudyTimer");
-
         Label modeLabel = new Label("Mode: STUDY");
 
-        timerLabel = new Label(formatTime(seconds));
+        TextField goalInput = new TextField("25");
+        goalInput.setMaxWidth(80);
 
-        Button studyButton = new Button("Study");
-        Button projectButton = new Button("Project");
+        timerLabel = new Label(formatTime(goalSeconds));
 
-        Button startButton = new Button("Start");
-        Button pauseButton = new Button("Pause");
-        Button resetButton = new Button("Reset");
+        Button study = new Button("Study");
+        Button project = new Button("Project");
+        Button setGoal = new Button("Set Goal");
 
-        Button miniButton = new Button("Mini Timer");
+        Button start = new Button("Start");
+        Button pause = new Button("Pause");
+        Button reset = new Button("Reset");
 
-        Button statsButton = new Button("Stats");
-        Button calendarButton = new Button("Calendar");
+        Button mini = new Button("Mini Timer");
+        Button stats = new Button("Stats");
+        Button calendar = new Button("Calendar");
 
-        // Study mode
-        studyButton.setOnAction(event -> {
-            currentMode = TimerMode.STUDY;
+        study.setOnAction(e -> {
+            mode = TimerMode.STUDY;
             modeLabel.setText("Mode: STUDY");
         });
 
-        // Project mode
-        projectButton.setOnAction(event -> {
-            currentMode = TimerMode.PROJECT;
+        project.setOnAction(e -> {
+            mode = TimerMode.PROJECT;
             modeLabel.setText("Mode: PROJECT");
         });
 
-        // Start
-        startButton.setOnAction(event -> timeline.play());
+        setGoal.setOnAction(e -> {
+            try {
+                int minutes = Integer.parseInt(goalInput.getText());
 
-        // Pause
-        pauseButton.setOnAction(event -> timeline.pause());
+                if (minutes > 0) {
+                    timeline.stop();
 
-        // Reset
-        resetButton.setOnAction(event -> {
-            timeline.stop();
-seconds = 25 * 60;
-sessionSeconds = 0;
-updateTimerLabels();
+                    goalSeconds = minutes * 60;
+                    focusedSeconds = 0;
+                    savedSeconds = 0;
+
+                    running = false;
+                    goalStarted = false;
+
+                    updateLabels();
+                }
+            } catch (NumberFormatException ignored) {
+            }
         });
 
-        // Mini timer
-        miniButton.setOnAction(event -> showMiniTimer());
+        start.setOnAction(e -> {
 
-        // Stats
-        statsButton.setOnAction(event -> showStats());
-        calendarButton.setOnAction(event -> CalendarView.show());
+            if (!goalStarted) {
+                goalStarted = true;
+                focusedSeconds = 0;
+                savedSeconds = 0;
+            }
 
-        // Timer
-        KeyFrame keyFrame = new KeyFrame(
-                Duration.seconds(1),
-                event -> {
+            startTime = System.nanoTime();
+            running = true;
+            timeline.play();
+        });
 
-                   if (seconds > 0) {
+        pause.setOnAction(e -> {
 
-    seconds--;
-    sessionSeconds++;
+            if (!running) return;
 
-    updateTimerLabels();
-                    } else {
+            updateElapsed();
 
-                        timeline.stop();
+            running = false;
+            timeline.pause();
 
-                       if (sessionSeconds > 0) {
+            saveProgress(false);
+        });
 
-    Session session = new Session(
-            LocalDate.now(),
-            currentMode,
-            sessionSeconds
-    );
+        reset.setOnAction(e -> {
 
-    SessionManager.saveSession(session);
+            if (running) updateElapsed();
 
-    sessionSeconds = 0;
-}
-                    }
-                }
+            saveProgress(false);
+            timeline.stop();
+
+            focusedSeconds = 0;
+            savedSeconds = 0;
+
+            running = false;
+            goalStarted = false;
+
+            updateLabels();
+        });
+
+        timeline = new Timeline(
+                new KeyFrame(
+                        Duration.millis(200),
+                        e -> {
+
+                            if (!running) return;
+
+                            updateElapsed();
+
+                            if (focusedSeconds >= goalSeconds) {
+
+                                focusedSeconds = goalSeconds;
+                                running = false;
+
+                                timeline.stop();
+                                saveProgress(true);
+
+                                goalStarted = false;
+                                updateLabels();
+                            }
+                        }
+                )
         );
 
-        timeline = new Timeline(keyFrame);
-        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.setCycleCount(Animation.INDEFINITE);
 
-        HBox modeButtons = new HBox(
+        mini.setOnAction(e -> showMiniTimer());
+        stats.setOnAction(e -> showStats());
+        calendar.setOnAction(e -> CalendarView.show());
+
+        HBox modes = new HBox(10, study, project);
+        HBox goal = new HBox(
                 10,
-                studyButton,
-                projectButton
+                new Label("Goal (minutes)"),
+                goalInput,
+                setGoal
         );
-
-        modeButtons.setAlignment(Pos.CENTER);
-
-        HBox timerButtons = new HBox(
+        HBox controls = new HBox(
                 10,
-                startButton,
-                pauseButton,
-                resetButton
+                start,
+                pause,
+                reset
         );
 
-        timerButtons.setAlignment(Pos.CENTER);
+        modes.setAlignment(Pos.CENTER);
+        goal.setAlignment(Pos.CENTER);
+        controls.setAlignment(Pos.CENTER);
 
         VBox layout = new VBox(
-        15,
-        title,
-        modeLabel,
-        modeButtons,
-        timerLabel,
-        timerButtons,
-        miniButton,
-        statsButton,
-        calendarButton
-);
+                15,
+                title,
+                modeLabel,
+                modes,
+                goal,
+                timerLabel,
+                controls,
+                mini,
+                stats,
+                calendar
+        );
 
         layout.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(layout, 400, 400);
+        Scene scene = new Scene(layout, 450, 450);
+
+        scene.getStylesheets().add(
+                getClass()
+                        .getResource("/style.css")
+                        .toExternalForm()
+        );
 
         stage.setTitle("StudyTimer");
         stage.setScene(scene);
-
         stage.show();
     }
 
+    private void updateElapsed() {
 
-    // =========================
-    // STATS WINDOW
-    // =========================
+        if (!running) return;
+
+        long now = System.nanoTime();
+
+        int elapsed = (int)
+                ((now - startTime) / 1_000_000_000L);
+
+        focusedSeconds = savedSeconds + elapsed;
+
+        if (focusedSeconds > goalSeconds) {
+            focusedSeconds = goalSeconds;
+        }
+
+        updateLabels();
+    }
+
+    private void saveProgress(boolean completed) {
+
+        int unsaved = focusedSeconds - savedSeconds;
+
+        if (!goalStarted || unsaved <= 0) {
+            return;
+        }
+
+        GoalSession session = new GoalSession(
+                LocalDate.now(),
+                mode,
+                goalSeconds,
+                unsaved,
+                completed
+        );
+
+        SessionManager.saveGoalSession(session);
+
+        savedSeconds = focusedSeconds;
+    }
+
+    private void updateLabels() {
+
+        int remaining =
+                Math.max(0, goalSeconds - focusedSeconds);
+
+        String time = formatTime(remaining);
+
+        timerLabel.setText(time);
+
+        if (miniTimerLabel != null) {
+            miniTimerLabel.setText(time);
+        }
+    }
 
     private void showStats() {
 
-        List<Session> sessions =
-                SessionManager.getSessions();
+        List<GoalSession> sessions =
+                SessionManager.getGoalSessions();
 
-        int totalSeconds = 0;
-        int studySeconds = 0;
-        int projectSeconds = 0;
+        int total = 0;
+        int study = 0;
+        int project = 0;
+        int completed = 0;
 
-        Set<LocalDate> activeDays =
-                new HashSet<>();
+        Set<LocalDate> activeDays = new HashSet<>();
 
-        for (Session session : sessions) {
+        for (GoalSession s : sessions) {
 
-            totalSeconds += session.getSeconds();
+            int seconds = s.getFocusedSeconds();
 
-            activeDays.add(session.getDate());
+            total += seconds;
+            activeDays.add(s.getDate());
 
-            if (session.getMode() == TimerMode.STUDY) {
+            if (s.getMode() == TimerMode.STUDY) {
+                study += seconds;
+            } else {
+                project += seconds;
+            }
 
-                studySeconds += session.getSeconds();
-
-            } else if (session.getMode() == TimerMode.PROJECT) {
-
-                projectSeconds += session.getSeconds();
+            if (s.isCompleted()) {
+                completed++;
             }
         }
 
-        int streak = calculateStreak(activeDays);
-
-        Label title =
-                new Label("StudyTimer Stats");
-
-        Label total =
+        VBox layout = new VBox(
+                15,
+                new Label("StudyTimer Stats"),
                 new Label(
                         "Total Focused: " +
-                        formatMinutes(totalSeconds)
-                );
-
-        Label study =
+                        formatDuration(total)
+                ),
                 new Label(
                         "Study Time: " +
-                        formatMinutes(studySeconds)
-                );
-
-        Label project =
+                        formatDuration(study)
+                ),
                 new Label(
                         "Project Time: " +
-                        formatMinutes(projectSeconds)
-                );
-
-        Label days =
+                        formatDuration(project)
+                ),
+                new Label(
+                        "Goals Completed: " + completed
+                ),
                 new Label(
                         "Active Days: " +
                         activeDays.size()
-                );
-
-        Label streakLabel =
+                ),
                 new Label(
                         "Current Streak: " +
-                        streak + " days 🔥"
-                );
-
-        VBox statsLayout = new VBox(
-                15,
-                title,
-                total,
-                study,
-                project,
-                days,
-                streakLabel
+                        streak(activeDays) +
+                        " days 🔥"
+                )
         );
 
-        statsLayout.setAlignment(Pos.CENTER);
+        layout.setAlignment(Pos.CENTER);
+        layout.getStyleClass().add("stats-root");
 
-        Scene statsScene =
-                new Scene(statsLayout, 350, 300);
+        Scene scene = new Scene(
+                layout,
+                350,
+                330
+        );
 
-        Stage statsStage =
-                new Stage();
+        scene.getStylesheets().add(
+                getClass()
+                        .getResource("/style.css")
+                        .toExternalForm()
+        );
 
-        statsStage.setTitle("StudyTimer Stats");
+        Stage window = new Stage();
 
-        statsStage.setScene(statsScene);
-
-        statsStage.show();
+        window.setTitle("StudyTimer Stats");
+        window.setScene(scene);
+        window.show();
     }
 
+    private int streak(Set<LocalDate> days) {
 
-    // =========================
-    // STREAK
-    // =========================
-
-    private int calculateStreak(Set<LocalDate> activeDays) {
-
-        int streak = 0;
-
+        int count = 0;
         LocalDate date = LocalDate.now();
 
-        while (activeDays.contains(date)) {
-
-            streak++;
-
+        while (days.contains(date)) {
+            count++;
             date = date.minusDays(1);
         }
 
-        return streak;
+        return count;
     }
-
-
-    // =========================
-    // FORMAT MINUTES
-    // =========================
-
-    private String formatMinutes(int totalSeconds) {
-
-        int minutes = totalSeconds / 60;
-
-        int hours = minutes / 60;
-
-        minutes = minutes % 60;
-
-        if (hours > 0) {
-
-            return hours + "h " + minutes + "m";
-
-        } else {
-
-            return minutes + "m";
-        }
-    }
-
-
-    // =========================
-    // MINI TIMER
-    // =========================
 
     private void showMiniTimer() {
 
         if (miniStage != null) {
-
             miniStage.show();
-
             return;
         }
 
         miniStage = new Stage();
-
-        miniStage.initStyle(
-                StageStyle.UNDECORATED
-        );
-
+        miniStage.initStyle(StageStyle.UNDECORATED);
         miniStage.setAlwaysOnTop(true);
 
-        miniTimerLabel =
-                new Label(formatTime(seconds));
-
-        miniTimerLabel.setStyle(
-                "-fx-font-size: 24px;" +
-                "-fx-font-weight: bold;" +
-                "-fx-padding: 10px;"
+        miniTimerLabel = new Label(
+                formatTime(
+                        goalSeconds - focusedSeconds
+                )
         );
 
-        VBox miniLayout =
-                new VBox(miniTimerLabel);
+        miniTimerLabel.setStyle(
+                "-fx-font-size:38px;" +
+                "-fx-font-weight:bold;" +
+                "-fx-text-fill:white;"
+        );
 
-        miniLayout.setAlignment(Pos.CENTER);
+        VBox box = new VBox(miniTimerLabel);
+        box.setAlignment(Pos.CENTER);
 
-        Scene miniScene =
-                new Scene(
-                        miniLayout,
-                        120,
-                        60
-                );
+        Scene scene = new Scene(box, 200, 90);
 
-        miniStage.setScene(miniScene);
+        miniStage.setScene(scene);
 
         miniStage.setX(
-                javafx.stage.Screen.getPrimary()
+                Screen.getPrimary()
                         .getVisualBounds()
-                        .getMaxX() - 140
+                        .getMaxX() - 220
         );
 
         miniStage.setY(
-                javafx.stage.Screen.getPrimary()
+                Screen.getPrimary()
                         .getVisualBounds()
-                        .getMaxY() - 100
+                        .getMaxY() - 130
         );
 
-        // Dragging
-        miniLayout.setOnMousePressed(event -> {
-
-            mouseX = event.getSceneX();
-            mouseY = event.getSceneY();
+        box.setOnMousePressed(e -> {
+            mouseX = e.getSceneX();
+            mouseY = e.getSceneY();
         });
 
-        miniLayout.setOnMouseDragged(event -> {
-
+        box.setOnMouseDragged(e -> {
             miniStage.setX(
-                    event.getScreenX() - mouseX
+                    e.getScreenX() - mouseX
             );
 
             miniStage.setY(
-                    event.getScreenY() - mouseY
+                    e.getScreenY() - mouseY
             );
         });
 
         miniStage.show();
     }
 
-
-    // =========================
-    // UPDATE TIMER
-    // =========================
-
-    private void updateTimerLabels() {
-
-        String time = formatTime(seconds);
-
-        timerLabel.setText(time);
-
-        if (miniTimerLabel != null) {
-
-            miniTimerLabel.setText(time);
-        }
-    }
-
-
-    // =========================
-    // FORMAT TIME
-    // =========================
-
-    private String formatTime(int totalSeconds) {
-
-        int minutes = totalSeconds / 60;
-
-        int seconds = totalSeconds % 60;
+    private String formatTime(int seconds) {
 
         return String.format(
                 "%02d:%02d",
-                minutes,
-                seconds
+                seconds / 60,
+                seconds % 60
         );
     }
 
+    private String formatDuration(int seconds) {
+
+        int hours = seconds / 3600;
+        int minutes = (seconds % 3600) / 60;
+        int secs = seconds % 60;
+
+        if (hours > 0) {
+            return hours + "h " +
+                    minutes + "m " +
+                    secs + "s";
+        }
+
+        if (minutes > 0) {
+            return minutes + "m " +
+                    secs + "s";
+        }
+
+        return secs + "s";
+    }
 
     public static void main(String[] args) {
-
         launch();
     }
 }
