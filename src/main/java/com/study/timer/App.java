@@ -16,20 +16,39 @@ public class App extends Application {
     private int seconds = 25 * 60;
 
     private Label timerLabel;
+    private Label modeLabel;
     private Timeline timeline;
+
+    private TimerMode currentMode = TimerMode.STUDY;
 
     @Override
     public void start(Stage stage) {
 
         Label title = new Label("StudyTimer");
 
+        modeLabel = new Label("Mode: STUDY");
+
         timerLabel = new Label(formatTime(seconds));
+
+        Button studyButton = new Button("Study");
+        Button projectButton = new Button("Project");
 
         Button startButton = new Button("Start");
         Button pauseButton = new Button("Pause");
         Button resetButton = new Button("Reset");
 
+        studyButton.setOnAction(event -> {
+            currentMode = TimerMode.STUDY;
+            modeLabel.setText("Mode: STUDY");
+        });
+
+        projectButton.setOnAction(event -> {
+            currentMode = TimerMode.PROJECT;
+            modeLabel.setText("Mode: PROJECT");
+        });
+
         startButton.setOnAction(event -> timeline.play());
+
         pauseButton.setOnAction(event -> timeline.pause());
 
         resetButton.setOnAction(event -> {
@@ -54,6 +73,9 @@ public class App extends Application {
         VBox layout = new VBox(
                 15,
                 title,
+                modeLabel,
+                studyButton,
+                projectButton,
                 timerLabel,
                 startButton,
                 pauseButton,
@@ -62,7 +84,7 @@ public class App extends Application {
 
         layout.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(layout, 400, 300);
+        Scene scene = new Scene(layout, 400, 400);
 
         stage.setTitle("StudyTimer");
         stage.setScene(scene);
