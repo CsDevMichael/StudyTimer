@@ -21,6 +21,7 @@ import java.util.Set;
 public class App extends Application {
 
     private int seconds = 25 * 60;
+    private int sessionSeconds = 0;
 
     private Label timerLabel;
     private Label miniTimerLabel;
@@ -76,8 +77,9 @@ public class App extends Application {
         // Reset
         resetButton.setOnAction(event -> {
             timeline.stop();
-            seconds = 25 * 60;
-            updateTimerLabels();
+seconds = 25 * 60;
+sessionSeconds = 0;
+updateTimerLabels();
         });
 
         // Mini timer
@@ -92,23 +94,28 @@ public class App extends Application {
                 Duration.seconds(1),
                 event -> {
 
-                    if (seconds > 0) {
+                   if (seconds > 0) {
 
-                        seconds--;
+    seconds--;
+    sessionSeconds++;
 
-                        updateTimerLabels();
-
+    updateTimerLabels();
                     } else {
 
                         timeline.stop();
 
-                        Session session = new Session(
-                                LocalDate.now(),
-                                currentMode,
-                                25 * 60
-                        );
+                       if (sessionSeconds > 0) {
 
-                        SessionManager.saveSession(session);
+    Session session = new Session(
+            LocalDate.now(),
+            currentMode,
+            sessionSeconds
+    );
+
+    SessionManager.saveSession(session);
+
+    sessionSeconds = 0;
+}
                     }
                 }
         );
