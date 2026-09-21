@@ -53,6 +53,7 @@ public class App extends Application {
         Button miniButton = new Button("Mini Timer");
 
         Button statsButton = new Button("Stats");
+        Button calendarButton = new Button("Calendar");
 
         // Study mode
         studyButton.setOnAction(event -> {
@@ -84,6 +85,7 @@ public class App extends Application {
 
         // Stats
         statsButton.setOnAction(event -> showStats());
+        calendarButton.setOnAction(event -> CalendarView.show());
 
         // Timer
         KeyFrame keyFrame = new KeyFrame(
@@ -132,15 +134,16 @@ public class App extends Application {
         timerButtons.setAlignment(Pos.CENTER);
 
         VBox layout = new VBox(
-                15,
-                title,
-                modeLabel,
-                modeButtons,
-                timerLabel,
-                timerButtons,
-                miniButton,
-                statsButton
-        );
+        15,
+        title,
+        modeLabel,
+        modeButtons,
+        timerLabel,
+        timerButtons,
+        miniButton,
+        statsButton,
+        calendarButton
+);
 
         layout.setAlignment(Pos.CENTER);
 
